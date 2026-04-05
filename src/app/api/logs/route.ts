@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getCurrentUser } from '@/lib/auth'
 
 // GET /api/logs - 스캔/출력 이력 조회
 export async function GET(request: NextRequest) {
   try {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return NextResponse.json(
+        { success: false, error: '인증이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
-    const hospitalId = searchParams.get('hospitalId')
+    let hospitalId = searchParams.get('hospitalId')
     const departmentId = searchParams.get('departmentId')
     const actionType = searchParams.get('actionType') as 'SCAN' | 'REGISTER' | 'PRINT' | null
     const from = searchParams.get('from')
@@ -16,6 +25,32 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     const where: Record<string, unknown> = {}
+
+    // member 역할인 경우 자신이 속한 병원의 이력만 조회
+    if (currentUser.role === 'member') {
+      if (currentUser.hospitalIds.length === 0) {
+        // 소속된 병원이 없는 member 계정은 이력 데이터를 볼 수 없음
+        return NextResponse.json({
+          success: true,
+          data: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 0
+        })
+      }
+      // 요청된 hospitalId가 자신의 병원에 속하는지 확인
+      if (hospitalId && !currentUser.hospitalIds.includes(hospitalId)) {
+        return NextResponse.json({
+          success: true,
+          data: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 0
+        })
+      }
+    }
 
     if (actionType) {
       where.actionType = actionType
@@ -35,6 +70,13 @@ export async function GET(request: NextRequest) {
       where.employee = { departmentId }
     } else if (hospitalId) {
       where.employee = { department: { hospitalId } }
+    } else if (currentUser.role === 'member' && currentUser.hospitalIds.length > 0) {
+      // member이고 병원 필터가 없으면 자신의 모든 병원 이력 조회
+      where.employee = {
+        department: {
+          hospitalId: { in: currentUser.hospitalIds }
+        }
+      }
     }
 
     if (search) {

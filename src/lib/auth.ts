@@ -46,7 +46,7 @@ export interface CurrentUser {
   id: string
   username: string
   role: string
-  hospitalId: string | null
+  hospitalIds: string[]
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -59,9 +59,20 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       id: true,
       username: true,
       role: true,
-      hospitalId: true
+      hospitalUsers: {
+        select: {
+          hospitalId: true
+        }
+      }
     }
   })
 
-  return user
+  if (!user) return null
+
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    hospitalIds: user.hospitalUsers.map(hu => hu.hospitalId)
+  }
 }

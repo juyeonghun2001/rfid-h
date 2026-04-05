@@ -1,20 +1,45 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
-const menuItems = [
-  { href: '/dashboard', label: '대시보드', icon: '📊' },
-  { href: '/hospitals', label: '병원 관리', icon: '🏥' },
-  { href: '/departments', label: '부서 관리', icon: '🏢' },
-  { href: '/employees', label: '직원 관리', icon: '👥' },
-  { href: '/users', label: '멤버 관리', icon: '👤' },
-  { href: '/logs', label: '이력 조회', icon: '📋' },
+interface CurrentUser {
+  username: string
+  role: string
+  hospitalId: string | null
+}
+
+const allMenuItems = [
+  { href: '/dashboard', label: '대시보드', icon: '📊', adminOnly: false },
+  { href: '/hospitals', label: '병원 관리', icon: '🏥', adminOnly: false },
+  { href: '/departments', label: '부서 관리', icon: '🏢', adminOnly: false },
+  { href: '/employees', label: '직원 관리', icon: '👥', adminOnly: false },
+  { href: '/users', label: '멤버 관리', icon: '👤', adminOnly: true },
+  { href: '/logs', label: '이력 조회', icon: '📋', adminOnly: false },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [user, setUser] = useState<CurrentUser | null>(null)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        const data = await res.json()
+        if (data.success) {
+          setUser(data.data)
+        }
+      } catch (error) {
+        console.error('사용자 정보 조회 오류:', error)
+      }
+    }
+    fetchUser()
+  }, [])
+
+  const menuItems = allMenuItems.filter(item => !item.adminOnly || user?.role === 'admin')
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -51,7 +76,17 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 space-y-2">
+        {user && (
+          <div className="px-4 py-2 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">{user.username}</span>
+              <span className="ml-2 text-xs text-gray-400">
+                {user.role === 'admin' ? '👑 관리자' : '👤 멤버'}
+              </span>
+            </p>
+          </div>
+        )}
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"

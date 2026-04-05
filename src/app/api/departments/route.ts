@@ -24,11 +24,50 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {}
 
     // member 역할인 경우 자신이 속한 병원의 부서만 조회
-    if (currentUser.role === 'member' && currentUser.hospitalId) {
-      hospitalId = currentUser.hospitalId
+    if (currentUser.role === 'member') {
+      if (currentUser.hospitalIds.length === 0) {
+        // 소속된 병원이 없는 member 계정은 부서 데이터를 볼 수 없음
+        if (all) {
+          return NextResponse.json({
+            success: true,
+            data: []
+          })
+        }
+        return NextResponse.json({
+          success: true,
+          data: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 0
+        })
+      }
+      // 요청된 hospitalId가 자신의 병원에 속하는지 확인
+      if (hospitalId && !currentUser.hospitalIds.includes(hospitalId)) {
+        if (all) {
+          return NextResponse.json({
+            success: true,
+            data: []
+          })
+        }
+        return NextResponse.json({
+          success: true,
+          data: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 0
+        })
+      }
     }
 
-    if (hospitalId) where.hospitalId = hospitalId
+    // member이고 hospitalId 파라미터가 없으면 자신의 병원들만 조회
+    if (currentUser.role === 'member' && !hospitalId && currentUser.hospitalIds.length > 0) {
+      where.hospitalId = { in: currentUser.hospitalIds }
+    } else if (hospitalId) {
+      where.hospitalId = hospitalId
+    }
+
     if (search) where.name = { contains: search, mode: 'insensitive' }
 
     if (all) {

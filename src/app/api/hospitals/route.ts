@@ -26,8 +26,19 @@ export async function GET(request: NextRequest) {
     }
 
     // member 역할인 경우 자신이 속한 병원만 조회
-    if (currentUser.role === 'member' && currentUser.hospitalId) {
-      where.id = currentUser.hospitalId
+    if (currentUser.role === 'member') {
+      if (currentUser.hospitalIds.length === 0) {
+        // 소속된 병원이 없는 member 계정은 병원 데이터를 볼 수 없음
+        return NextResponse.json({
+          success: true,
+          data: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 0
+        })
+      }
+      where.id = { in: currentUser.hospitalIds }
     }
 
     const [hospitals, total] = await Promise.all([
@@ -85,6 +96,14 @@ export async function GET(request: NextRequest) {
 // POST /api/hospitals - 병원 등록
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return NextResponse.json(
+        { success: false, error: '인증이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const { name } = await request.json()
 
     if (!name?.trim()) {
@@ -94,9 +113,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 병원 생성
     const hospital = await prisma.hospital.create({
       data: { name: name.trim() }
     })
+
+    // member 계정이 병원 등록 시 자동으로 HospitalUser에 추가
+    if (currentUser.role === 'member') {
+      await prisma.hospitalUser.create({
+        data: {
+          userId: currentUser.id,
+          hospitalId: hospital.id
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,

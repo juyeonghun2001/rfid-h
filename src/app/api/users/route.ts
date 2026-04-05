@@ -13,16 +13,35 @@ export async function GET(request: NextRequest) {
         username: true,
         role: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        hospitalUsers: {
+          select: {
+            hospital: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
       }
     })
 
+    // hospitalUsers를 hospitals 배열로 변환
+    const usersWithHospitals = users.map(user => {
+      const { hospitalUsers, ...userWithoutHospitalUsers } = user as any
+      return {
+        ...userWithoutHospitalUsers,
+        hospitals: hospitalUsers.map((hu: any) => hu.hospital)
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      data: users
+      data: usersWithHospitals
     })
   } catch (error) {
     console.error('Error fetching users:', error)
