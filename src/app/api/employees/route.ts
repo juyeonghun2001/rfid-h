@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getCurrentUser } from '@/lib/auth'
 
 // GET /api/employees - 직원 목록 조회
 export async function GET(request: NextRequest) {
   try {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return NextResponse.json(
+        { success: false, error: '인증이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
-    const hospitalId = searchParams.get('hospitalId')
+    let hospitalId = searchParams.get('hospitalId')
     const departmentId = searchParams.get('departmentId')
     const search = searchParams.get('search') || ''
     const rfidStatus = searchParams.get('rfidStatus') // 'registered' | 'unregistered'
@@ -15,6 +24,11 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     const where: Record<string, unknown> = {}
+
+    // member 역할인 경우 자신이 속한 병원의 직원만 조회
+    if (currentUser.role === 'member' && currentUser.hospitalId) {
+      hospitalId = currentUser.hospitalId
+    }
 
     if (departmentId) {
       where.departmentId = departmentId

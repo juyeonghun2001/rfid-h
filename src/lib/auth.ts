@@ -41,3 +41,27 @@ export async function isAuthenticated(): Promise<boolean> {
   const session = await getSession()
   return session !== null
 }
+
+export interface CurrentUser {
+  id: string
+  username: string
+  role: string
+  hospitalId: string | null
+}
+
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const session = await getSession()
+  if (!session) return null
+
+  const user = await prisma.user.findUnique({
+    where: { username: session.username },
+    select: {
+      id: true,
+      username: true,
+      role: true,
+      hospitalId: true
+    }
+  })
+
+  return user
+}

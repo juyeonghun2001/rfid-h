@@ -8,6 +8,7 @@ const menuItems = [
   { href: '/hospitals', label: '병원 관리', icon: '🏥' },
   { href: '/departments', label: '부서 관리', icon: '🏢' },
   { href: '/employees', label: '직원 관리', icon: '👥' },
+  { href: '/users', label: '멤버 관리', icon: '👤' },
   { href: '/logs', label: '이력 조회', icon: '📋' },
 ]
 

@@ -8,9 +8,10 @@ datasource db {
 }
 
 model Hospital {
-  id          String       @id @default(uuid())
+  id          String       @id @default(cuid())
   name        String       @db.VarChar(100)
   departments Department[]
+  users       User[]
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
@@ -48,12 +49,14 @@ model Employee {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique @db.VarChar(50)
-  password  String   @db.VarChar(255)
-  role      String   @default("user") @db.VarChar(20)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         String    @id @default(cuid())
+  username   String    @unique @db.VarChar(50)
+  password   String    @db.VarChar(255)
+  role       String    @default("user") @db.VarChar(20)
+  hospitalId String?   @map("hospital_id")
+  hospital   Hospital? @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   @@map("users")
 }
