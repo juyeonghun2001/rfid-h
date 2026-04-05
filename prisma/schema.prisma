@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Hospital {
+  id          String       @id @default(uuid())
+  name        String       @db.VarChar(100)
+  departments Department[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("hospitals")
+}
+
+model Department {
+  id         String     @id @default(uuid())
+  hospitalId String     @map("hospital_id")
+  hospital   Hospital   @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  name       String     @db.VarChar(100)
+  employees  Employee[]
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  @@map("departments")
+}
+
+model Employee {
+  id               String     @id @default(uuid())
+  departmentId     String     @map("department_id")
+  department       Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  name             String     @db.VarChar(50)
+  phone            String?    @db.VarChar(20)
+  location         String?    @db.VarChar(100)
+  uniformType      String?    @map("uniform_type") @db.VarChar(100)
+  rfidCode         String?    @unique @map("rfid_code") @db.VarChar(50)
+  rfidRegisteredAt DateTime?  @map("rfid_registered_at")
+  memo             String?
+  scanLogs         ScanLog[]
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  @@map("employees")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique @db.VarChar(50)
+  password  String   @db.VarChar(255)
+  role      String   @default("user") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model ScanLog {
+  id         String     @id @default(uuid())
+  employeeId String     @map("employee_id")
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  actionType ActionType @map("action_type")
+  rfidCode   String     @map("rfid_code") @db.VarChar(50)
+  deviceId   String     @map("device_id") @db.VarChar(50)
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@map("scan_logs")
+}
+
+enum ActionType {
+  SCAN
+  REGISTER
+  PRINT
+}

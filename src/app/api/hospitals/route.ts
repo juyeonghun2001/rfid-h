@@ -1,0 +1,97 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+
+// GET /api/hospitals - 병원 목록 조회
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search') || ''
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const skip = (page - 1) * limit
+
+    const where = search
+      ? { name: { contains: search, mode: 'insensitive' as const } }
+      : {}
+
+    const [hospitals, total] = await Promise.all([
+      prisma.hospital.findMany({
+        where,
+        include: {
+          _count: {
+            select: { departments: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.hospital.count({ where })
+    ])
+
+    // 직원 수 계산
+    const hospitalsWithCounts = await Promise.all(
+      hospitals.map(async (hospital) => {
+        const employeeCount = await prisma.employee.count({
+          where: {
+            department: {
+              hospitalId: hospital.id
+            }
+          }
+        })
+        return {
+          ...hospital,
+          _count: {
+            ...hospital._count,
+            employees: employeeCount
+          }
+        }
+      })
+    )
+
+    return NextResponse.json({
+      success: true,
+      data: hospitalsWithCounts,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    })
+  } catch (error) {
+    console.error('병원 목록 조회 오류:', error)
+    return NextResponse.json(
+      { success: false, error: '병원 목록을 불러오는데 실패했습니다.' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST /api/hospitals - 병원 등록
+export async function POST(request: NextRequest) {
+  try {
+    const { name } = await request.json()
+
+    if (!name?.trim()) {
+      return NextResponse.json(
+        { success: false, error: '병원명을 입력해주세요.' },
+        { status: 400 }
+      )
+    }
+
+    const hospital = await prisma.hospital.create({
+      data: { name: name.trim() }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: hospital,
+      message: '병원이 등록되었습니다.'
+    })
+  } catch (error) {
+    console.error('병원 등록 오류:', error)
+    return NextResponse.json(
+      { success: false, error: '병원 등록에 실패했습니다.' },
+      { status: 500 }
+    )
+  }
+}
